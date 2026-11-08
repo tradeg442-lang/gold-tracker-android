@@ -1,3 +1,4 @@
+
 name: Build Gold Tracker APK
 
 on:
@@ -26,19 +27,21 @@ jobs:
       - name: Siapkan Android SDK
         run: |
           mkdir -p "$ANDROID_HOME/cmdline-tools"
+
           cd "$RUNNER_TEMP"
 
           wget -q https://dl.google.com/android/repository/commandlinetools-linux-12266719_latest.zip
 
           mkdir -p android-tools
+
           unzip -q commandlinetools-linux-12266719_latest.zip -d android-tools
 
           mv android-tools/cmdline-tools "$ANDROID_HOME/cmdline-tools/latest"
 
-          echo "$ANDROID_HOME/cmdline-tools/latest/bin" >> "$GITHUB_PATH"
-          echo "$ANDROID_HOME/platform-tools" >> "$GITHUB_PATH"
+          echo "$ANDROID_HOME/cmdline-tools/latest/bin" >> $GITHUB_PATH
+          echo "$ANDROID_HOME/platform-tools" >> $GITHUB_PATH
 
-          yes | sdkmanager --licenses
+          yes | sdkmanager --licenses || true
 
           sdkmanager --install \
             "platform-tools" \
@@ -55,21 +58,24 @@ jobs:
           fi
 
           mkdir -p /tmp/gold
+
           unzip -q "$ZIP" -d /tmp/gold
 
-          PROJECT=$(find /tmp/gold \( -name settings.gradle -o -name settings.gradle.kts \) | head -1)
+          PROJECT=$(find /tmp/gold -name settings.gradle -o -name settings.gradle.kts | head -1)
 
           if [ -z "$PROJECT" ]; then
             echo "File settings.gradle tidak ditemukan"
             exit 1
           fi
 
-          echo "PROJECT_DIR=$(dirname "$PROJECT")" >> "$GITHUB_ENV"
+          echo "PROJECT_DIR=$(dirname "$PROJECT")" >> $GITHUB_ENV
 
       - name: Buat APK
         run: |
           chmod +x "$PROJECT_DIR/gradlew"
+
           cd "$PROJECT_DIR"
+
           ./gradlew assembleDebug --no-daemon
 
       - name: Siapkan APK
@@ -77,7 +83,7 @@ jobs:
           mkdir -p "$GITHUB_WORKSPACE/hasil"
 
           cp "$PROJECT_DIR/app/build/outputs/apk/debug/app-debug.apk" \
-            "$GITHUB_WORKSPACE/hasil/GOLD-TRACKER.apk"
+             "$GITHUB_WORKSPACE/hasil/GOLD-TRACKER.apk"
 
       - name: Unduh APK
         uses: actions/upload-artifact@v4
