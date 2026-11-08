@@ -1,0 +1,87 @@
+name: Build Gold Tracker APK
+
+on:
+  push:
+    branches: [utama]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build Android APK
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Ambil kode
+        uses: actions/checkout@v4
+
+      - name: Siapkan Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Siapkan Android SDK
+        run: |
+          mkdir -p "$ANDROID_HOME/cmdline-tools"
+          cd "$RUNNER_TEMP"
+
+          wget -q https://dl.google.com/android/repository/commandlinetools-linux-12266719_latest.zip
+
+          mkdir -p android-tools
+          unzip -q commandlinetools-linux-12266719_latest.zip -d android-tools
+
+          mv android-tools/cmdline-tools "$ANDROID_HOME/cmdline-tools/latest"
+
+          echo "$ANDROID_HOME/cmdline-tools/latest/bin" >> "$GITHUB_PATH"
+          echo "$ANDROID_HOME/platform-tools" >> "$GITHUB_PATH"
+
+          yes | sdkmanager --licenses
+
+          sdkmanager --install \
+            "platform-tools" \
+            "platforms;android-35" \
+            "build-tools;35.0.0"
+
+      - name: Ekstrak proyek
+        run: |
+          ZIP=$(find . -maxdepth 1 -iname "*.zip" | head -1)
+
+          if [ -z "$ZIP" ]; then
+            echo "File ZIP proyek tidak ditemukan"
+            exit 1
+          fi
+
+          mkdir -p /tmp/gold
+          unzip -q "$ZIP" -d /tmp/gold
+
+          PROJECT=$(find /tmp/gold \( -name settings.gradle -o -name settings.gradle.kts \) | head -1)
+
+          if [ -z "$PROJECT" ]; then
+            echo "File settings.gradle tidak ditemukan"
+            exit 1
+          fi
+
+          echo "PROJECT_DIR=$(dirname "$PROJECT")" >> "$GITHUB_ENV"
+
+      - name: Buat APK
+        run: |
+          chmod +x "$PROJECT_DIR/gradlew"
+          cd "$PROJECT_DIR"
+          ./gradlew assembleDebug --no-daemon
+
+      - name: Siapkan APK
+        run: |
+          mkdir -p "$GITHUB_WORKSPACE/hasil"
+
+          cp "$PROJECT_DIR/app/build/outputs/apk/debug/app-debug.apk" \
+            "$GITHUB_WORKSPACE/hasil/GOLD-TRACKER.apk"
+
+      - name: Unduh APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: GOLD-TRACKER-APK
+          path: hasil/GOLD-TRACKER.apk
+          retention-days: 14
